@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { MapPin } from '@heroicons/react/24/outline';
+import { MapPinIcon as MapPin } from '@heroicons/react/24/outline';
 import Map, { Marker } from 'react-map-gl';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
