@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import ReactMarkdown from 'react-markdown';
+import toast from 'react-hot-toast';
 
 export default function ChatSupport() {
   const [messages, setMessages] = useState([]);
@@ -48,19 +49,40 @@ export default function ChatSupport() {
     setIsTyping(true);
 
     try {
-      // Here we would normally call the chat API
-      // For now, we'll simulate a response
-      setTimeout(() => {
-        const botResponse = {
-          content: "I'm here to help! How can I assist you today?",
-          role: 'assistant',
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, botResponse]);
-        setIsTyping(false);
-      }, 1000);
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: messages.concat(userMessage).map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const botResponse = {
+        content: data.choices[0].message.content,
+        role: 'assistant',
+        created_at: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, botResponse]);
+
+      // Save messages to Supabase
+      await supabase.from('chat_messages').insert([userMessage, botResponse]);
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Failed to send message. Please try again.');
+    } finally {
       setIsTyping(false);
     }
   };
@@ -70,7 +92,7 @@ export default function ChatSupport() {
       <div className="bg-white rounded-lg shadow-lg overflow-hidden h-[calc(100vh-12rem)]">
         <div className="p-4 bg-primary-600 text-white">
           <h1 className="text-xl font-semibold">Chat Support</h1>
-          <p className="text-sm opacity-90">We're here to help 24/7</p>
+          <p className="text-sm opacity-90">AI-powered assistance available 24/7</p>
         </div>
 
         <div className="flex flex-col h-[calc(100%-8rem)]">
@@ -119,7 +141,7 @@ export default function ChatSupport() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={!input.trim()}
+                disabled={!input.trim() || isTyping}
               >
                 Send
               </button>
